@@ -225,6 +225,7 @@ export function CheckoutModal({
         body: JSON.stringify({
           ...payload,
           curso_id: cursoId,
+          telefone: formData.telefone,
         }),
       });
 
