@@ -51,6 +51,7 @@ export function CheckoutModal({
   const [boletoCode, setBoletoCode] = useState("");
   const [selectedBumps, setSelectedBumps] = useState<string[]>([]);
   const [allBumps, setAllBumps] = useState<Array<{ id: string, preco: number, nome: string, imagem?: string, descricao?: string }>>([]);
+  const [ultimoMetodo, setUltimoMetodo] = useState<string>("");
 
   const valorBase = produto?.preco || 67;
   const valorBump = allBumps.filter(b => selectedBumps.includes(b.id)).reduce((sum, b) => sum + b.preco, 0);
@@ -117,6 +118,7 @@ export function CheckoutModal({
   async function processarPagamento(leadId: string | null, paymentMethod: string) {
     setStatus("loading");
     setErrorMsg("");
+    setUltimoMetodo(paymentMethod);
 
     try {
       const payload: any = {
@@ -254,12 +256,12 @@ export function CheckoutModal({
         }, 2000);
       } else {
         setStatus("error");
-        setErrorMsg(result.message || "Pagamento recusado.");
+        setErrorMsg(result.message || "O sistema não reconheceu seu pagamento, por favor, tente novamente diretamente na plataforma do Asaas");
       }
     } catch (err: any) {
       console.error("Erro no pagamento:", err);
       setStatus("error");
-      setErrorMsg(err.message || "Erro ao processar pagamento.");
+      setErrorMsg("O sistema não reconheceu seu pagamento, por favor, tente novamente diretamente na plataforma do Asaas");
     }
   }
 
@@ -333,6 +335,7 @@ export function CheckoutModal({
       setLeadId(null);
       setCpf("");
       setBoletoCode("");
+      setUltimoMetodo("");
       setFormData({
         nome: "",
         email: "",
@@ -954,15 +957,17 @@ const containerClass = asPage
                 </svg>
               </div>
               <div>
-                <h3 className="text-gray-900 font-bold text-xl mb-1">Algo deu errado</h3>
+                <h3 className="text-gray-900 font-bold text-xl mb-1">Pagamento não reconhecido</h3>
                 <p className="text-gray-500 text-base">{errorMsg}</p>
               </div>
-              <button
-                onClick={() => setStatus("idle")}
+              <a
+                href={ultimoMetodo === "credit_card" ? "https://www.asaas.com/c/vxhbhuyjyc1epzq3" : "https://www.asaas.com/c/kxej2c4769vrs6dh"}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="mt-2 px-6 py-2 rounded-lg bg-[#07b848] text-white text-base font-bold hover:bg-[#06a03d] transition"
               >
-                Tentar novamente
-              </button>
+                Comprar pelo Asaas
+              </a>
             </div>
           )}
         </div>
