@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 const SUPABASE_URL = "https://bgpygirvzfjvfathywjb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJncHlnaXJ2emZqdmZhdGh5d2piIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2NTUzMjYsImV4cCI6MjA4NTIzMTMyNn0.XhISEn_lCjb_ZejanwZDE98lBDDsCI4bwHZr6bdEKCA";
 const MP_PUBLIC_KEY = "APP_USR-76ab7025-3464-4e2b-b5fd-793afa73a6f0";
-const BUMP_IDS = ["antigravity"];
+const BUMP_IDS = ["antigravity", "ebook_como_vender_saas"];
 
 function getUTMs() {
   if (typeof window === "undefined") return {};
@@ -521,6 +521,7 @@ const containerClass = asPage
                   {allBumps.map((bump) => {
                     const isSelected = selectedBumps.includes(bump.id);
                     const isAntigravity = bump.id === "antigravity";
+                    const isEbookVenderSaas = bump.id === "ebook_como_vender_saas";
                     return (
                       <div
                         key={bump.id}
@@ -536,19 +537,19 @@ const containerClass = asPage
                             )}
                           </div>
                           <img
-                            src="https://robsoliveiradesign.com.br/wp-content/uploads/2026/04/Capa-Curso_Antigravity.webp"
+                            src={isAntigravity ? "https://robsoliveiradesign.com.br/wp-content/uploads/2026/04/Capa-Curso_Antigravity.webp" : isEbookVenderSaas ? "https://robsoliveiradesign.com.br/wp-content/uploads/2026/05/Capa-Como-vender-apps-Vibe-Coding-Copia.webp" : bump.imagem || ""}
                             className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                             alt={bump.nome}
                           />
                           <div className="flex-1 min-w-0">
                             <span className="inline-block bg-[#07b848] text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1">
-                              {isAntigravity ? "ADICIONAR OFERTA" : "Oferta especial"}
+                              {isAntigravity || isEbookVenderSaas ? "ADICIONAR OFERTA" : "Oferta especial"}
                             </span>
                             <p className="text-sm font-bold text-gray-900 leading-tight mb-1">
-                              {isAntigravity ? "Antigravity: Do Básico ao Avançado" : bump.nome}
+                              {isAntigravity ? "Antigravity: Do Básico ao Avançado" : isEbookVenderSaas ? "Como vender aplicativos feitos com IA" : bump.nome}
                             </p>
                             <p className="text-xs text-gray-500 leading-snug mb-2">
-                              {isAntigravity ? "Aprenda a usar o Google Antigravity para criar apps, sites e sistemas com IA de forma gratuita e ilimitada." : "Aprimore seus resultados com esta oferta especial."}
+                              {isAntigravity ? "Aprenda a usar o Google Antigravity para criar apps, sites e sistemas com IA de forma gratuita e ilimitada." : isEbookVenderSaas ? "Guia Estratégico Completo com todo o passo a passo para a venda de SAAS ou apps de IA e conquistar um faturamento milionário." : "Aprimore seus resultados com esta oferta especial."}
                             </p>
                             <p className="text-sm font-bold text-[#07b848]">
                               + R$ {bump.preco.toFixed(2).replace(".", ",")}
@@ -655,6 +656,7 @@ const containerClass = asPage
                   {allBumps.map((bump) => {
                     const isSelected = selectedBumps.includes(bump.id);
                     const isAntigravity = bump.id === "antigravity";
+                    const isEbookVenderSaas = bump.id === "ebook_como_vender_saas";
                     return (
                       <div
                         key={bump.id}
@@ -670,19 +672,19 @@ const containerClass = asPage
                             )}
                           </div>
                           <img
-                            src="https://robsoliveiradesign.com.br/wp-content/uploads/2026/04/Capa-Curso_Antigravity.webp"
+                            src={isAntigravity ? "https://robsoliveiradesign.com.br/wp-content/uploads/2026/04/Capa-Curso_Antigravity.webp" : isEbookVenderSaas ? "https://robsoliveiradesign.com.br/wp-content/uploads/2026/05/Capa-Como-vender-apps-Vibe-Coding-Copia.webp" : bump.imagem || ""}
                             className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                             alt={bump.nome}
                           />
                           <div className="flex-1 min-w-0">
                             <span className="inline-block bg-[#07b848] text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1">
-                              {isAntigravity ? "ADICIONAR OFERTA" : "Oferta especial"}
+                              {isAntigravity || isEbookVenderSaas ? "ADICIONAR OFERTA" : "Oferta especial"}
                             </span>
                             <p className="text-sm font-bold text-gray-900 leading-tight mb-1">
-                              {isAntigravity ? "Antigravity: Do Básico ao Avançado" : bump.nome}
+                              {isAntigravity ? "Antigravity: Do Básico ao Avançado" : isEbookVenderSaas ? "Como vender aplicativos feitos com IA" : bump.nome}
                             </p>
                             <p className="text-xs text-gray-500 leading-snug mb-2">
-                              {isAntigravity ? "Aprenda a usar o Google Antigravity para criar aplicativos, sites e sistemas com IA de forma gratuita e ilimitada." : "Aprimore seus resultados com esta oferta especial."}
+                              {isAntigravity ? "Aprenda a usar o Google Antigravity para criar apps, sites e sistemas com IA de forma gratuita e ilimitada." : isEbookVenderSaas ? "Guia Estratégico Completo com todo o passo a passo para a venda de SAAS ou apps de IA e conquistar um faturamento milionário." : "Aprimore seus resultados com esta oferta especial."}
                             </p>
                             <p className="text-sm font-bold text-[#07b848]">
                               + R$ {bump.preco.toFixed(2).replace(".", ",")}
@@ -742,6 +744,7 @@ const containerClass = asPage
                   {allBumps.map((bump) => {
                     const isSelected = selectedBumps.includes(bump.id);
                     const isAntigravity = bump.id === "antigravity";
+                    const isEbookVenderSaas = bump.id === "ebook_como_vender_saas";
                     return (
                       <div
                         key={bump.id}
@@ -757,19 +760,19 @@ const containerClass = asPage
                             )}
                           </div>
                           <img
-                            src="https://robsoliveiradesign.com.br/wp-content/uploads/2026/04/Capa-Curso_Antigravity.webp"
+                            src={isAntigravity ? "https://robsoliveiradesign.com.br/wp-content/uploads/2026/04/Capa-Curso_Antigravity.webp" : isEbookVenderSaas ? "https://robsoliveiradesign.com.br/wp-content/uploads/2026/05/Capa-Como-vender-apps-Vibe-Coding-Copia.webp" : bump.imagem || ""}
                             className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                             alt={bump.nome}
                           />
                           <div className="flex-1 min-w-0">
                             <span className="inline-block bg-[#07b848] text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1">
-                              {isAntigravity ? "ADICIONAR OFERTA" : "Oferta especial"}
+                              {isAntigravity || isEbookVenderSaas ? "ADICIONAR OFERTA" : "Oferta especial"}
                             </span>
                             <p className="text-sm font-bold text-gray-900 leading-tight mb-1">
-                              {isAntigravity ? "Antigravity: Do Básico ao Avançado" : bump.nome}
+                              {isAntigravity ? "Antigravity: Do Básico ao Avançado" : isEbookVenderSaas ? "Como vender aplicativos feitos com IA" : bump.nome}
                             </p>
                             <p className="text-xs text-gray-500 leading-snug mb-2">
-                              {isAntigravity ? "Aprenda a usar o Google Antigravity para criar aplicativos, sites e sistemas com IA de forma gratuita e ilimitada." : "Aprimore seus resultados com esta oferta especial."}
+                              {isAntigravity ? "Aprenda a usar o Google Antigravity para criar apps, sites e sistemas com IA de forma gratuita e ilimitada." : isEbookVenderSaas ? "Guia Estratégico Completo com todo o passo a passo para a venda de SAAS ou apps de IA e conquistar um faturamento milionário." : "Aprimore seus resultados com esta oferta especial."}
                             </p>
                             <p className="text-sm font-bold text-[#07b848]">
                               + R$ {bump.preco.toFixed(2).replace(".", ",")}
