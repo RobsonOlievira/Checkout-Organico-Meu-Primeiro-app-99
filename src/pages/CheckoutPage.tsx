@@ -401,7 +401,7 @@ export function CheckoutModal({
   const maxInstallments = produto?.installments || 3;
 
 const containerClass = asPage 
-    ? "min-h-screen flex items-center justify-center p-4"
+    ? "min-h-screen flex flex-col items-center justify-center p-4"
     : "fixed inset-0 z-[200] flex items-center justify-center p-4";
 
   const wrapperClass = asPage
@@ -962,6 +962,7 @@ const containerClass = asPage
               <div>
                 <h3 className="text-gray-900 font-bold text-xl mb-1">Pagamento não reconhecido</h3>
                 <p className="text-gray-500 text-base">{errorMsg}</p>
+                <p className="text-gray-400 text-sm mt-2">Role até o final desta página para resolver.</p>
               </div>
               <a
                 href={ultimoMetodo === "credit_card" ? "https://www.asaas.com/c/vxhbhuyjyc1epzq3" : "https://www.asaas.com/c/kxej2c4769vrs6dh"}
@@ -983,6 +984,71 @@ const containerClass = asPage
           </svg>
           <p className="text-gray-500 text-[10px] sm:text-xs">Ambiente seguro e criptografado</p>
         </div>
+      </div>
+
+      {/* FAQ */}
+      <div className="mt-8 w-full max-w-lg mx-auto space-y-3">
+        <details className="bg-white rounded-xl shadow-md overflow-hidden">
+          <summary className="px-5 py-4 cursor-pointer text-sm font-bold text-gray-800 flex items-center justify-between gap-2">
+            <span>O pagamento falhou. E agora?</span>
+            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
+            Use o link abaixo para comprar pelo Asaas:<br />
+            <a href="https://www.asaas.com/c/kxej2c4769vrs6dh" target="_blank" rel="noopener noreferrer" className="text-[#07b848] font-bold underline break-all">https://www.asaas.com/c/kxej2c4769vrs6dh</a>
+          </div>
+        </details>
+
+        <details className="bg-white rounded-xl shadow-md overflow-hidden">
+          <summary className="px-5 py-4 cursor-pointer text-sm font-bold text-gray-800 flex items-center justify-between gap-2">
+            <span>Meu pagamento foi recusado. E agora?</span>
+            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
+            Se seu pagamento foi recusado, é porque o Mercado Pago encontrou alguma inconsistência. Você pode tentar novamente com os dados corretos. Se ainda assim falhar, tente por este link seguro no Asaas:<br />
+            <a href="https://www.asaas.com/c/kxej2c4769vrs6dh" target="_blank" rel="noopener noreferrer" className="text-[#07b848] font-bold underline break-all">https://www.asaas.com/c/kxej2c4769vrs6dh</a>
+          </div>
+        </details>
+
+        <details className="bg-white rounded-xl shadow-md overflow-hidden">
+          <summary className="px-5 py-4 cursor-pointer text-sm font-bold text-gray-800 flex items-center justify-between gap-2">
+            <span>Como funciona o pagamento?</span>
+            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
+            Oferecemos pagamento via <strong>PIX</strong> (aprovação instantânea) e <strong>Cartão de Crédito</strong> (parcelamento em até 3x). Ambos processados pelo Mercado Pago, uma das maiores plataformas da América Latina. Seu pagamento é 100% seguro e criptografado.
+          </div>
+        </details>
+
+        <details className="bg-white rounded-xl shadow-md overflow-hidden">
+          <summary className="px-5 py-4 cursor-pointer text-sm font-bold text-gray-800 flex items-center justify-between gap-2">
+            <span>Meus dados estão seguros?</span>
+            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
+            Sim! Todas as informações são processadas diretamente pelo <strong>Mercado Pago</strong> com criptografia de ponta a ponta. Nós nunca armazenamos dados do seu cartão.
+          </div>
+        </details>
+
+        <details className="bg-white rounded-xl shadow-md overflow-hidden">
+          <summary className="px-5 py-4 cursor-pointer text-sm font-bold text-gray-800 flex items-center justify-between gap-2">
+            <span>Como recebo o acesso após a compra?</span>
+            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
+            Após a confirmação do pagamento, você receberá o acesso por e-mail em instantes. Se não encontrar, verifique sua caixa de <strong>spam</strong> ou <strong>lixeira</strong>.
+          </div>
+        </details>
+
+        <details className="bg-white rounded-xl shadow-md overflow-hidden">
+          <summary className="px-5 py-4 cursor-pointer text-sm font-bold text-gray-800 flex items-center justify-between gap-2">
+            <span>Posso parcelar no cartão?</span>
+            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
+            Sim! Você pode parcelar em até <strong>3x</strong> no cartão de crédito. As parcelas são processadas diretamente pelo Mercado Pago e aparecem na fatura normalmente.
+          </div>
+        </details>
       </div>
     </div>
   );
