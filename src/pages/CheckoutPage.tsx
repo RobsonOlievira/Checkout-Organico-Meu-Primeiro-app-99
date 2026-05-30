@@ -147,6 +147,11 @@ export function CheckoutModal({
       if (paymentMethod === "credit_card") {
         payload.installments = parseInt(formData.installment) || 1;
 
+        payload.payer.identification = {
+          type: "CPF",
+          number: cpf.replace(/\D/g, ""),
+        };
+
         delete payload.payment_method_id;
 
         const cardNumber = formData.numeroCartao.replace(/\D/g, "");
@@ -279,6 +284,10 @@ export function CheckoutModal({
       return;
     }
     if (paymentMethod === "boleto" && (!cpf.trim() || cpf.replace(/\D/g, "").length < 11)) {
+      setErrorMsg("Informe um CPF válido.");
+      return;
+    }
+    if ((paymentMethod === "credit_card" || paymentMethod === "debit_card") && (!cpf.trim() || cpf.replace(/\D/g, "").length < 11)) {
       setErrorMsg("Informe um CPF válido.");
       return;
     }
@@ -584,6 +593,24 @@ const containerClass = asPage
                   </div>
 
                   <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">CPF do Titular *</label>
+                    <input
+                      type="text"
+                      value={cpf}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, "").slice(0, 11);
+                        val = val.replace(/(\d{3})(\d)/, "$1.$2");
+                        val = val.replace(/(\d{3})(\d)/, "$1.$2");
+                        val = val.replace(/(\d{3})(\d{2})$/, "$1-$2");
+                        setCpf(val);
+                      }}
+                      placeholder="000.000.000-00"
+                      maxLength={14}
+                      className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
+                    />
+                  </div>
+
+                  <div>
                     <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">Número do Cartão</label>
                     <input
                       type="text"
@@ -696,7 +723,14 @@ const containerClass = asPage
                   })}
 
                   <button
-                    onClick={() => handleSubmit("credit_card")}
+                    onClick={() => {
+                      if (!cpf.replace(/\D/g, "").length || cpf.replace(/\D/g, "").length < 11) {
+                        setErrorMsg("Informe um CPF válido.");
+                        return;
+                      }
+                      setErrorMsg("");
+                      handleSubmit("credit_card");
+                    }}
                     className="w-full mt-4 py-4 bg-[#07b848] text-white font-bold text-lg rounded-lg hover:bg-[#06a03d] transition-colors shadow-lg"
                   >
                     PAGAR COM CARTÃO
