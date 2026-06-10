@@ -52,6 +52,10 @@ export function CheckoutModal({
   const [selectedBumps, setSelectedBumps] = useState<string[]>([]);
   const [allBumps, setAllBumps] = useState<Array<{ id: string, preco: number, nome: string, imagem?: string, descricao?: string }>>([]);
   const [ultimoMetodo, setUltimoMetodo] = useState<string>("");
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [blocked, setBlocked] = useState(false);
+  const [loadingLink, setLoadingLink] = useState(false);
+  const [paymentLink, setPaymentLink] = useState("");
 
   const valorBase = produto?.preco || 67;
   const valorBump = allBumps.filter(b => selectedBumps.includes(b.id)).reduce((sum, b) => sum + b.preco, 0);
@@ -113,6 +117,73 @@ export function CheckoutModal({
     } catch (e) {
       console.error("Erro ao atualizar lead:", e);
     }
+  }
+
+  function getStatusDetailMessage(detail: string): string {
+    const messages: Record<string, string> = {
+      cc_rejected_bad_filled_card_number: "Número do cartão inválido. Verifique e tente novamente.",
+      cc_rejected_bad_filled_date: "Data de validade inválida. Verifique e tente novamente.",
+      cc_rejected_bad_filled_other: "Dados do cartão incorretos. Verifique e tente novamente.",
+      cc_rejected_bad_filled_security_code: "CVV inválido. Verifique e tente novamente.",
+      cc_rejected_blacklist: "Cartão recusado pelo banco emissor. Tente outro cartão ou forma de pagamento.",
+      cc_rejected_call_for_authorize: "Cartão necessita autorização. Entre em contato com seu banco.",
+      cc_rejected_card_disabled: "Cartão desativado. Entre em contato com seu banco.",
+      cc_rejected_card_high_risk: "Cartão recusado por motivo de segurança. Tente outro cartão.",
+      cc_rejected_duplicate_payment: "Pagamento duplicado. Já existe uma cobrança similar em processamento.",
+      cc_rejected_high_risk: "Pagamento recusado pelo antifraude. Não insista — tente outro cartão ou forma de pagamento.",
+      cc_rejected_insufficient_amount: "Limite insuficiente no cartão. Tente outro cartão ou use PIX.",
+      cc_rejected_invalid_installments: "Parcelamento inválido para este cartão. Escolha outra quantidade de parcelas.",
+      cc_rejected_max_attempts: "Você excedeu o limite de tentativas. Tente novamente mais tarde.",
+      cc_rejected_other_reason: "Cartão recusado pelo banco emissor. Tente outro cartão ou forma de pagamento.",
+      cc_amount_rate_constraint: "Valor fora dos limites permitidos pelo banco. Tente outro cartão ou use PIX.",
+      cc_rejected_expired_card: "Cartão vencido. Use outro cartão.",
+      rejected_high_risk: "Pagamento recusado pelo sistema antifraude. Tente novamente com dados corretos.",
+    };
+    return messages[detail] || "Pagamento recusado. Verifique os dados e tente novamente.";
+  }
+
+  async function criarLinkPagamento(leadUuid?: string | null) {
+    setLoadingLink(true);
+    let ref = leadUuid;
+    if (!ref) {
+      const utms = getUTMs();
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Prefer": "return=representation" },
+          body: JSON.stringify({ nome: formData.nome || "Lead", email: formData.email || "pendente@tesseract.com", telefone: formData.telefone, curso_id: cursoId, bump_ids: selectedBumps, status_pagamento: "pendente", ...utms, criado_em: new Date().toISOString() }),
+        });
+        if (r.ok) { const d = await r.json(); ref = d?.[0]?.id || null; }
+      } catch {}
+    }
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({ tipo: "criar_preferencia", curso_id: cursoId, bump_ids: selectedBumps, external_reference: ref || "direto" }),
+      });
+      const data = await res.json();
+      if (data.init_point) {
+        setPaymentLink(data.init_point);
+        window.open(data.init_point, "_blank");
+      } else {
+        setErrorMsg("Erro ao gerar link de pagamento. Tente novamente.");
+      }
+    } catch {
+      setErrorMsg("Erro ao gerar link de pagamento. Tente novamente.");
+    } finally {
+      setLoadingLink(false);
+    }
+  }
+
+  function tentarNovamente() {
+    setStatus("idle");
+    setErrorMsg("");
+    setPixData(null);
+    setBoletoCode("");
+    setPaymentLink("");
+    setAttemptCount(0);
+    setBlocked(false);
   }
 
   async function processarPagamento(leadId: string | null, paymentMethod: string) {
@@ -255,22 +326,42 @@ export function CheckoutModal({
           setStatus("pending");
         }
       } else if (result.status === "approved") {
+        setAttemptCount(0);
         setStatus("success");
         setTimeout(() => {
           window.location.href = produto?.success_url || "https://robsoliveiradesign.com.br/obrigado-maia/";
         }, 2000);
       } else {
+        const novaContagem = attemptCount + 1;
+        setAttemptCount(novaContagem);
+        const msgDetalhe = getStatusDetailMessage(result.status_detail);
         setStatus("error");
-        setErrorMsg(result.message || "O sistema não reconheceu seu pagamento, por favor, tente novamente diretamente na plataforma do Asaas");
+        if (novaContagem >= 5) {
+          setBlocked(true);
+          setErrorMsg("Você excedeu o limite de tentativas. Use o link abaixo para comprar pelo Mercado Pago.");
+        } else {
+          setErrorMsg(`${msgDetalhe} (tentativa ${novaContagem} de 5)`);
+        }
       }
     } catch (err: any) {
       console.error("Erro no pagamento:", err);
+      const novaContagem = attemptCount + 1;
+      setAttemptCount(novaContagem);
       setStatus("error");
-      setErrorMsg("O sistema não reconheceu seu pagamento, por favor, tente novamente diretamente na plataforma do Asaas");
+      if (novaContagem >= 5) {
+        setBlocked(true);
+        setErrorMsg("Você excedeu o limite de tentativas. Use o link abaixo para comprar pelo Mercado Pago.");
+      } else {
+        setErrorMsg("Erro ao processar pagamento. Verifique sua conexão e tente novamente.");
+      }
     }
   }
 
   const handleSubmit = async (paymentMethod: string) => {
+    if (blocked) {
+      setErrorMsg("Limite de tentativas excedido. Use o link abaixo para comprar pelo Mercado Pago.");
+      return;
+    }
     if (!formData.nome.trim() || !formData.email.trim()) {
       setErrorMsg("Preencha todos os campos obrigatórios.");
       return;
@@ -312,6 +403,7 @@ export function CheckoutModal({
           email: formData.email,
           telefone: formData.telefone,
           curso_id: cursoId,
+          bump_ids: selectedBumps,
           status_pagamento: "pendente",
           ...utms,
           criado_em: new Date().toISOString(),
@@ -345,6 +437,9 @@ export function CheckoutModal({
       setCpf("");
       setBoletoCode("");
       setUltimoMetodo("");
+      setAttemptCount(0);
+      setBlocked(false);
+      setPaymentLink("");
       setFormData({
         nome: "",
         email: "",
@@ -996,16 +1091,40 @@ const containerClass = asPage
               <div>
                 <h3 className="text-gray-900 font-bold text-xl mb-1">Pagamento não reconhecido</h3>
                 <p className="text-gray-500 text-base">{errorMsg}</p>
-                <p className="text-gray-400 text-sm mt-2">Role até o final desta página para resolver.</p>
               </div>
-              <a
-                href={ultimoMetodo === "credit_card" ? "https://www.asaas.com/c/vxhbhuyjyc1epzq3" : "https://www.asaas.com/c/kxej2c4769vrs6dh"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 px-6 py-2 rounded-lg bg-[#07b848] text-white text-base font-bold hover:bg-[#06a03d] transition"
-              >
-                Comprar pelo Asaas
-              </a>
+              {!blocked && (
+                <div className="flex flex-col gap-3 w-full max-w-xs">
+                  <button
+                    onClick={() => criarLinkPagamento(leadId)}
+                    disabled={loadingLink}
+                    className="px-6 py-3 rounded-lg bg-[#07b848] text-white text-base font-bold hover:bg-[#06a03d] transition disabled:opacity-50"
+                  >
+                    {loadingLink ? "Gerando link..." : "Pagar com Mercado Pago"}
+                  </button>
+                  <button
+                    onClick={tentarNovamente}
+                    className="px-6 py-2 rounded-lg border-2 border-gray-300 text-gray-600 text-base font-bold hover:bg-gray-50 transition"
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
+              {blocked && (
+                <div className="flex flex-col gap-3 w-full max-w-xs">
+                  <button
+                    onClick={() => criarLinkPagamento(leadId)}
+                    disabled={loadingLink}
+                    className="px-6 py-3 rounded-lg bg-[#07b848] text-white text-base font-bold hover:bg-[#06a03d] transition disabled:opacity-50"
+                  >
+                    {loadingLink ? "Gerando link..." : "Pagar com Mercado Pago"}
+                  </button>
+                </div>
+              )}
+              {paymentLink && (
+                <p className="text-xs text-gray-400">
+                  Após o pagamento, seu acesso é liberado automaticamente.
+                </p>
+              )}
             </div>
           )}
         </div>
