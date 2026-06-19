@@ -299,12 +299,17 @@ export function CheckoutModal({
         };
       }
 
+      const deviceId = (document.getElementById("deviceId") as HTMLInputElement | null)?.value
+        || (window as any).deviceId
+        || "";
+
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          ...(deviceId ? { "X-meli-session-id": deviceId } : {}),
         },
         body: JSON.stringify({
           ...payload,
