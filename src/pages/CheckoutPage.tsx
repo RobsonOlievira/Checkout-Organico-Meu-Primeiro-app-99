@@ -195,10 +195,23 @@ export function CheckoutModal({
         });
 
         const cardToken = await tokenRes.json();
+        console.log("💳 card_token response:", cardToken);
 
         if (!cardToken?.id) {
           setStatus("error");
-          setErrorMsg(cardToken.message || "Dados do cartão inválidos. Verifique e tente novamente.");
+          setErrorMsg(cardToken?.message || "Dados do cartão inválidos. Verifique e tente novamente.");
+          return;
+        }
+
+        if (!cardToken.payment_method_id) {
+          setStatus("error");
+          setErrorMsg("Não foi possível identificar a bandeira do cartão. Confira número, validade e CVV.");
+          return;
+        }
+
+        if (cpf.replace(/\D/g, "").length !== 11) {
+          setStatus("error");
+          setErrorMsg("CPF inválido. Verifique e tente novamente.");
           return;
         }
 
@@ -234,6 +247,9 @@ export function CheckoutModal({
         };
       }
 
+      const bodyEnviado = { ...payload, curso_id: cursoId, telefone: formData.telefone };
+      console.log("📤 payload enviado para função:", bodyEnviado);
+
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
         method: "POST",
         headers: {
@@ -241,14 +257,11 @@ export function CheckoutModal({
           "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({
-          ...payload,
-          curso_id: cursoId,
-          telefone: formData.telefone,
-        }),
+        body: JSON.stringify(bodyEnviado),
       });
 
       const result = await res.json();
+      console.log("📥 resposta da função:", res.status, result);
       if (result.lead_id) setLeadId(result.lead_id);
 
       if (result.status === "pending") {
