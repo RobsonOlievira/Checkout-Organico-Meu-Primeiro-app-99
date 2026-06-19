@@ -57,10 +57,6 @@ export function CheckoutModal({
   const [loadingLink, setLoadingLink] = useState(false);
   const [paymentLink, setPaymentLink] = useState("");
 
-  const valorBase = produto?.preco || 67;
-  const valorBump = allBumps.filter(b => selectedBumps.includes(b.id)).reduce((sum, b) => sum + b.preco, 0);
-  const valorTotal = valorBase + valorBump;
-
   function getStatusDetailMessage(detail: string): string {
     const messages: Record<string, string> = {
       cc_rejected_bad_filled_card_number: "Número do cartão inválido. Verifique e tente novamente.",
@@ -84,28 +80,33 @@ export function CheckoutModal({
     return messages[detail] || "Pagamento recusado. Verifique os dados e tente novamente.";
   }
 
+  const valorBase = produto?.preco || 99;
+  const valorBump = allBumps.filter(b => selectedBumps.includes(b.id)).reduce((sum, b) => sum + b.preco, 0);
+  const valorTotal = valorBase + valorBump;
+
   async function criarLinkPagamento(leadUuid?: string | null) {
     setLoadingLink(true);
+    let ref = leadUuid;
+    if (!ref) {
+      const utms = getUTMs();
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Prefer": "return=representation" },
+          body: JSON.stringify({ nome: formData.nome || "Lead", email: formData.email || "pendente@tesseract.com", telefone: formData.telefone, curso_id: cursoId, bump_ids: selectedBumps, status_pagamento: "pendente", ...utms, criado_em: new Date().toISOString() }),
+        });
+        if (r.ok) { const d = await r.json(); ref = d?.[0]?.id || null; }
+      } catch {}
+    }
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({
-          tipo: "criar_preferencia",
-          curso_id: cursoId,
-          bump_ids: selectedBumps,
-          external_reference: leadUuid || "direto",
-          payer: {
-            email: formData.email || undefined,
-            first_name: formData.nome || undefined,
-          },
-          telefone: formData.telefone || undefined,
-        }),
+        body: JSON.stringify({ tipo: "criar_preferencia", curso_id: cursoId, bump_ids: selectedBumps, external_reference: ref || "direto" }),
       });
       const data = await res.json();
       if (data.init_point) {
         setPaymentLink(data.init_point);
-        if (data.lead_id) setLeadId(data.lead_id);
         window.open(data.init_point, "_blank");
       } else {
         setErrorMsg("Erro ao gerar link de pagamento. Tente novamente.");
@@ -125,6 +126,64 @@ export function CheckoutModal({
     setPaymentLink("");
     setAttemptCount(0);
     setBlocked(false);
+  }
+
+  async function criarLead(): Promise<string | null> {
+    try {
+      const utms = getUTMs();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Prefer": "return=representation",
+        },
+        body: JSON.stringify({
+          nome: "Lead Iniciado",
+          email: "pendente@tesseract.com",
+          telefone: "",
+          curso_id: cursoId,
+          status_pagamento: "pendente",
+          ...utms,
+          criado_em: new Date().toISOString(),
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("❌ Erro ao criar lead:", res.status, errText);
+        return null;
+      }
+      const data = await res.json();
+      const newLeadId = data?.[0]?.id;
+      console.log("✅ Lead criado ao abrir modal:", newLeadId);
+      return newLeadId || null;
+    } catch (e: any) {
+      console.error("❌ Falha ao criar lead:", e);
+      return null;
+    }
+  }
+
+  async function atualizarLeadComDados(leadId: string) {
+    if (!leadId) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/leads?id=eq.${leadId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          nome: formData.nome || "Lead Iniciado",
+          email: formData.email || "pendente@tesseract.com",
+          telefone: formData.telefone,
+        }),
+      });
+    } catch (e) {
+      console.error("Erro ao atualizar lead:", e);
+    }
   }
 
   async function processarPagamento(leadId: string | null, paymentMethod: string) {
@@ -154,6 +213,12 @@ export function CheckoutModal({
           area_code: formData.telefone.replace(/\D/g, "").slice(0, 2),
           number: formData.telefone.replace(/\D/g, "").slice(2),
         };
+        if (cpf.replace(/\D/g, "").length === 11) {
+          payload.payer.identification = {
+            type: "CPF",
+            number: cpf.replace(/\D/g, ""),
+          };
+        }
       }
 
       if (paymentMethod === "credit_card") {
@@ -195,23 +260,10 @@ export function CheckoutModal({
         });
 
         const cardToken = await tokenRes.json();
-        console.log("💳 card_token response:", cardToken);
 
         if (!cardToken?.id) {
           setStatus("error");
-          setErrorMsg(cardToken?.message || "Dados do cartão inválidos. Verifique e tente novamente.");
-          return;
-        }
-
-        if (!cardToken.payment_method_id) {
-          setStatus("error");
-          setErrorMsg("Não foi possível identificar a bandeira do cartão. Confira número, validade e CVV.");
-          return;
-        }
-
-        if (cpf.replace(/\D/g, "").length !== 11) {
-          setStatus("error");
-          setErrorMsg("CPF inválido. Verifique e tente novamente.");
+          setErrorMsg(cardToken.message || "Dados do cartão inválidos. Verifique e tente novamente.");
           return;
         }
 
@@ -247,9 +299,6 @@ export function CheckoutModal({
         };
       }
 
-      const bodyEnviado = { ...payload, curso_id: cursoId, telefone: formData.telefone };
-      console.log("📤 payload enviado para função:", bodyEnviado);
-
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
         method: "POST",
         headers: {
@@ -257,12 +306,14 @@ export function CheckoutModal({
           "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify(bodyEnviado),
+        body: JSON.stringify({
+          ...payload,
+          curso_id: cursoId,
+          telefone: formData.telefone,
+        }),
       });
 
       const result = await res.json();
-      console.log("📥 resposta da função:", res.status, result);
-      if (result.lead_id) setLeadId(result.lead_id);
 
       if (result.status === "pending") {
         if (result.payment_method_id === "pix" && result.point_of_interaction?.transaction_data) {
@@ -293,7 +344,7 @@ export function CheckoutModal({
         setStatus("error");
         if (novaContagem >= 5) {
           setBlocked(true);
-          setErrorMsg("Você excedeu o limite de tentativas. Use o link abaixo para comprar pelo Mercado Pago.");
+          setErrorMsg("Você excedeu o limite de tentativas. Use o link abaixo para comprar pelo Asaas.");
         } else {
           setErrorMsg(`${msgDetalhe} (tentativa ${novaContagem} de 5)`);
         }
@@ -305,7 +356,7 @@ export function CheckoutModal({
       setStatus("error");
       if (novaContagem >= 5) {
         setBlocked(true);
-        setErrorMsg("Você excedeu o limite de tentativas. Use o link abaixo para comprar pelo Mercado Pago.");
+        setErrorMsg("Você excedeu o limite de tentativas. Use o link abaixo para comprar pelo Asaas.");
       } else {
         setErrorMsg("Erro ao processar pagamento. Verifique sua conexão e tente novamente.");
       }
@@ -314,7 +365,7 @@ export function CheckoutModal({
 
   const handleSubmit = async (paymentMethod: string) => {
     if (blocked) {
-      setErrorMsg("Limite de tentativas excedido. Use o link abaixo para comprar pelo Mercado Pago.");
+      setErrorMsg("Limite de tentativas excedido. Use o link abaixo para comprar pelo Asaas.");
       return;
     }
     if (!formData.nome.trim() || !formData.email.trim()) {
@@ -333,14 +384,51 @@ export function CheckoutModal({
       setErrorMsg("Informe um CPF válido.");
       return;
     }
-    if ((paymentMethod === "credit_card" || paymentMethod === "debit_card") && (!cpf.trim() || cpf.replace(/\D/g, "").length < 11)) {
-      setErrorMsg("Informe um CPF válido.");
-      return;
-    }
     if ((paymentMethod === "credit_card" || paymentMethod === "debit_card") &&
       (!formData.numeroCartao.trim() || !formData.nomeCartao.trim() || !formData.validade.trim() || !formData.cvv.trim() || formData.validade.replace(/\D/g, "").length < 6)) {
       setErrorMsg("Preencha todos os dados do cartão. Data de expiração inválida. Correto: MM/AAAA");
       return;
+    }
+    if ((paymentMethod === "credit_card" || paymentMethod === "debit_card") && (!cpf.trim() || cpf.replace(/\D/g, "").length < 11)) {
+      setErrorMsg("Informe um CPF válido.");
+      return;
+    }
+
+    const utms = getUTMs();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Prefer": "return=representation",
+        },
+        body: JSON.stringify({
+          nome: formData.nome,
+          email: formData.email,
+          telefone: formData.telefone,
+          curso_id: cursoId,
+          bump_ids: selectedBumps,
+          status_pagamento: "pendente",
+          ...utms,
+          criado_em: new Date().toISOString(),
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("❌ Erro ao criar lead:", res.status, errText);
+      } else {
+        const data = await res.json();
+        const newLeadId = data?.[0]?.id;
+        console.log("✅ Lead criado com email real:", newLeadId, formData.email);
+        setLeadId(newLeadId);
+        await processarPagamento(newLeadId, paymentMethod);
+        return;
+      }
+    } catch (e: any) {
+      console.error("❌ Falha ao criar lead:", e);
     }
 
     await processarPagamento(null, paymentMethod);
@@ -355,9 +443,6 @@ export function CheckoutModal({
       setCpf("");
       setBoletoCode("");
       setUltimoMetodo("");
-      setAttemptCount(0);
-      setBlocked(false);
-      setPaymentLink("");
       setFormData({
         nome: "",
         email: "",
@@ -491,7 +576,7 @@ const containerClass = asPage
           </button>
         </div>
 
-        <div className="p-4 md:p-5 overflow-y-auto flex-1 modal-scroll-container" style={{ maxHeight: 'calc(85vh - 120px)' }}>
+        <div className="p-4 md:p-5 overflow-y-auto flex-1 modal-scroll-container" style={{ maxHeight: 'calc(85vh - 200px)' }}>
           {status === "loading" && (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
               <div className="w-10 h-10 border-3 border-[#07b848] border-t-transparent rounded-full animate-spin" />
@@ -540,6 +625,24 @@ const containerClass = asPage
                     />
                   </div>
 
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">CPF <span className="text-gray-400 normal-case font-normal">(opcional, usado para emissão de nota fiscal)</span></label>
+                    <input
+                      type="text"
+                      value={cpf}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, "").slice(0, 11);
+                        val = val.replace(/(\d{3})(\d)/, "$1.$2");
+                        val = val.replace(/(\d{3})(\d)/, "$1.$2");
+                        val = val.replace(/(\d{3})(\d{2})$/, "$1-$2");
+                        setCpf(val);
+                      }}
+                      placeholder="000.000.000-00"
+                      maxLength={14}
+                      className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
+                    />
+                  </div>
+
                   {allBumps.map((bump) => {
                     const isSelected = selectedBumps.includes(bump.id);
                     const isAntigravity = bump.id === "antigravity";
@@ -581,13 +684,6 @@ const containerClass = asPage
                       </div>
                     );
                   })}
-
-                  <button
-                    onClick={() => handleSubmit("pix")}
-                    className="w-full mt-4 py-4 bg-[#07b848] text-white font-bold text-lg rounded-lg hover:bg-[#06a03d] transition-colors shadow-lg"
-                  >
-                    PAGAR COM PIX
-                  </button>
                 </div>
               )}
 
@@ -734,20 +830,6 @@ const containerClass = asPage
                       </div>
                     );
                   })}
-
-                  <button
-                    onClick={() => {
-                      if (!cpf.replace(/\D/g, "").length || cpf.replace(/\D/g, "").length < 11) {
-                        setErrorMsg("Informe um CPF válido.");
-                        return;
-                      }
-                      setErrorMsg("");
-                      handleSubmit("credit_card");
-                    }}
-                    className="w-full mt-4 py-4 bg-[#07b848] text-white font-bold text-lg rounded-lg hover:bg-[#06a03d] transition-colors shadow-lg"
-                  >
-                    PAGAR COM CARTÃO
-                  </button>
                 </div>
               )}
 
@@ -829,20 +911,6 @@ const containerClass = asPage
                       </div>
                     );
                   })}
-
-                  <button
-                    onClick={() => {
-                      if (!cpf.replace(/\D/g, "").length || cpf.replace(/\D/g, "").length < 11) {
-                        setErrorMsg("Informe um CPF válido.");
-                        return;
-                      }
-                      setErrorMsg("");
-                      handleSubmit("boleto");
-                    }}
-                    className="w-full mt-4 py-4 bg-[#07b848] text-white font-bold text-lg rounded-lg hover:bg-[#06a03d] transition-colors shadow-lg"
-                  >
-                    GERAR BOLETO
-                  </button>
                 </div>
               )}
 
@@ -1046,6 +1114,50 @@ const containerClass = asPage
             </div>
           )}
         </div>
+
+        {/* Container fixo para o botão de ação sempre visível */}
+        {status === "idle" && (
+          <div className="px-4 pb-3 pt-2 bg-white border-t border-gray-100 flex-shrink-0">
+            {activeTab === "pix" && (
+              <button
+                onClick={() => handleSubmit("pix")}
+                className="w-full py-4 bg-[#07b848] text-white font-bold text-lg rounded-lg hover:bg-[#06a03d] transition-colors shadow-lg"
+              >
+                PAGAR COM PIX
+              </button>
+            )}
+            {activeTab === "cartao" && (
+              <button
+                onClick={() => {
+                  if (!cpf.replace(/\D/g, "").length || cpf.replace(/\D/g, "").length < 11) {
+                    setErrorMsg("Informe um CPF válido.");
+                    return;
+                  }
+                  setErrorMsg("");
+                  handleSubmit("credit_card");
+                }}
+                className="w-full py-4 bg-[#07b848] text-white font-bold text-lg rounded-lg hover:bg-[#06a03d] transition-colors shadow-lg"
+              >
+                PAGAR COM CARTÃO
+              </button>
+            )}
+            {activeTab === "boleto" && (
+              <button
+                onClick={() => {
+                  if (!cpf.replace(/\D/g, "").length || cpf.replace(/\D/g, "").length < 11) {
+                    setErrorMsg("Informe um CPF válido.");
+                    return;
+                  }
+                  setErrorMsg("");
+                  handleSubmit("boleto");
+                }}
+                className="w-full py-4 bg-[#07b848] text-white font-bold text-lg rounded-lg hover:bg-[#06a03d] transition-colors shadow-lg"
+              >
+                GERAR BOLETO
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="border-t border-gray-100 px-6 pt-5 pb-4 flex items-center justify-center gap-2 flex-shrink-0">
