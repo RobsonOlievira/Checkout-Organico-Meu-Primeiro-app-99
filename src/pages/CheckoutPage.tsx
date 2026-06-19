@@ -61,64 +61,6 @@ export function CheckoutModal({
   const valorBump = allBumps.filter(b => selectedBumps.includes(b.id)).reduce((sum, b) => sum + b.preco, 0);
   const valorTotal = valorBase + valorBump;
 
-  async function criarLead(): Promise<string | null> {
-    try {
-      const utms = getUTMs();
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-          "Prefer": "return=representation",
-        },
-        body: JSON.stringify({
-          nome: "Lead Iniciado",
-          email: "pendente@tesseract.com",
-          telefone: "",
-          curso_id: cursoId,
-          status_pagamento: "pendente",
-          ...utms,
-          criado_em: new Date().toISOString(),
-        }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("❌ Erro ao criar lead:", res.status, errText);
-        return null;
-      }
-      const data = await res.json();
-      const newLeadId = data?.[0]?.id;
-      console.log("✅ Lead criado ao abrir modal:", newLeadId);
-      return newLeadId || null;
-    } catch (e: any) {
-      console.error("❌ Falha ao criar lead:", e);
-      return null;
-    }
-  }
-
-  async function atualizarLeadComDados(leadId: string) {
-    if (!leadId) return;
-    try {
-      await fetch(`${SUPABASE_URL}/rest/v1/leads?id=eq.${leadId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          nome: formData.nome || "Lead Iniciado",
-          email: formData.email || "pendente@tesseract.com",
-          telefone: formData.telefone,
-        }),
-      });
-    } catch (e) {
-      console.error("Erro ao atualizar lead:", e);
-    }
-  }
-
   function getStatusDetailMessage(detail: string): string {
     const messages: Record<string, string> = {
       cc_rejected_bad_filled_card_number: "Número do cartão inválido. Verifique e tente novamente.",
@@ -144,27 +86,26 @@ export function CheckoutModal({
 
   async function criarLinkPagamento(leadUuid?: string | null) {
     setLoadingLink(true);
-    let ref = leadUuid;
-    if (!ref) {
-      const utms = getUTMs();
-      try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Prefer": "return=representation" },
-          body: JSON.stringify({ nome: formData.nome || "Lead", email: formData.email || "pendente@tesseract.com", telefone: formData.telefone, curso_id: cursoId, bump_ids: selectedBumps, status_pagamento: "pendente", ...utms, criado_em: new Date().toISOString() }),
-        });
-        if (r.ok) { const d = await r.json(); ref = d?.[0]?.id || null; }
-      } catch {}
-    }
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ tipo: "criar_preferencia", curso_id: cursoId, bump_ids: selectedBumps, external_reference: ref || "direto" }),
+        body: JSON.stringify({
+          tipo: "criar_preferencia",
+          curso_id: cursoId,
+          bump_ids: selectedBumps,
+          external_reference: leadUuid || "direto",
+          payer: {
+            email: formData.email || undefined,
+            first_name: formData.nome || undefined,
+          },
+          telefone: formData.telefone || undefined,
+        }),
       });
       const data = await res.json();
       if (data.init_point) {
         setPaymentLink(data.init_point);
+        if (data.lead_id) setLeadId(data.lead_id);
         window.open(data.init_point, "_blank");
       } else {
         setErrorMsg("Erro ao gerar link de pagamento. Tente novamente.");
@@ -308,6 +249,7 @@ export function CheckoutModal({
       });
 
       const result = await res.json();
+      if (result.lead_id) setLeadId(result.lead_id);
 
       if (result.status === "pending") {
         if (result.payment_method_id === "pix" && result.point_of_interaction?.transaction_data) {
@@ -386,43 +328,6 @@ export function CheckoutModal({
       (!formData.numeroCartao.trim() || !formData.nomeCartao.trim() || !formData.validade.trim() || !formData.cvv.trim() || formData.validade.replace(/\D/g, "").length < 6)) {
       setErrorMsg("Preencha todos os dados do cartão. Data de expiração inválida. Correto: MM/AAAA");
       return;
-    }
-
-    const utms = getUTMs();
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-          "Prefer": "return=representation",
-        },
-        body: JSON.stringify({
-          nome: formData.nome,
-          email: formData.email,
-          telefone: formData.telefone,
-          curso_id: cursoId,
-          bump_ids: selectedBumps,
-          status_pagamento: "pendente",
-          ...utms,
-          criado_em: new Date().toISOString(),
-        }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("❌ Erro ao criar lead:", res.status, errText);
-      } else {
-        const data = await res.json();
-        const newLeadId = data?.[0]?.id;
-        console.log("✅ Lead criado com email real:", newLeadId, formData.email);
-        setLeadId(newLeadId);
-        await processarPagamento(newLeadId, paymentMethod);
-        return;
-      }
-    } catch (e: any) {
-      console.error("❌ Falha ao criar lead:", e);
     }
 
     await processarPagamento(null, paymentMethod);
