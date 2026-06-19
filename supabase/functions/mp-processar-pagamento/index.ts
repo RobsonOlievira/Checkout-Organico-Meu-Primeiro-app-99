@@ -346,6 +346,48 @@ async function handleCriarPreferencia(
 
   const externalRef = leadId || external_reference || "direto";
 
+  // 🔎 Puxa dados do lead existente para preencher payer (front só envia external_reference)
+  let payerLead: { nome?: string | null; email?: string | null; telefone?: string | null } | null = null;
+  if (leadId) {
+    const { data: ld } = await supabaseAdmin
+      .from("leads")
+      .select("nome, email, telefone")
+      .eq("id", leadId)
+      .maybeSingle();
+    payerLead = ld || null;
+  }
+
+  const payerEmail = payer?.email || payerLead?.email || null;
+  const payerNome = (payer?.first_name || payerLead?.nome || "").trim();
+  const payerTelefone = (payer?.phone?.area_code || telefone || payerLead?.telefone || "").toString().replace(/\D/g, "");
+
+  const payerPref: Record<string, any> = {};
+  if (payerEmail && payerEmail.includes("@")) payerPref.email = payerEmail;
+  if (payerNome) {
+    const parts = payerNome.split(/\s+/);
+    payerPref.first_name = parts[0] || "";
+    payerPref.last_name = parts.slice(1).join(" ") || parts[0] || "";
+  }
+  if (payerTelefone.length >= 10) {
+    payerPref.phone = {
+      area_code: payerTelefone.slice(0, 2),
+      number: payerTelefone.slice(2),
+    };
+  }
+  // address com defaults (igual ao boleto) — pontua na avaliação do MP
+  payerPref.address = {
+    zip_code: "01001000",
+    street_name: "Rua Example",
+    street_number: "S/N",
+    neighborhood: "Centro",
+    city: "Sao Paulo",
+    federal_unit: "SP",
+  };
+
+  // ⏰ expires — preferência válida por 7 dias
+  const expires = new Date();
+  expires.setDate(expires.getDate() + 7);
+
   const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
     method: "POST",
     headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
@@ -360,6 +402,12 @@ async function handleCriarPreferencia(
         failure: produto.failure_url,
         pending: produto.failure_url,
       },
+      notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-processar-pagamento`,
+      expires: true,
+      expiration_date_from: new Date().toISOString(),
+      expiration_date_to: expires.toISOString(),
+      binary_mode: false,
+      payer: payerPref,
       metadata: {
         curso_id,
         bump_curso_ids: bumpsValidos.join(","),
