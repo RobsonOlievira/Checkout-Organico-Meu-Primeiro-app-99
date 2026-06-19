@@ -299,17 +299,12 @@ export function CheckoutModal({
         };
       }
 
-      const deviceId = (document.getElementById("deviceId") as HTMLInputElement | null)?.value
-        || (window as any).deviceId
-        || "";
-
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-          ...(deviceId ? { "X-meli-session-id": deviceId } : {}),
         },
         body: JSON.stringify({
           ...payload,
@@ -422,7 +417,8 @@ export function CheckoutModal({
       });
 
       if (!res.ok) {
-        // RLS bloqueia INSERT anônimo na tabela leads (esperado). A Edge Function cria o lead via service_role. Silencioso.
+        const errText = await res.text();
+        console.error("❌ Erro ao criar lead:", res.status, errText);
       } else {
         const data = await res.json();
         const newLeadId = data?.[0]?.id;
@@ -432,7 +428,7 @@ export function CheckoutModal({
         return;
       }
     } catch (e: any) {
-      // Silencioso: RLS bloqueia insert anônimo. Edge Function cria via service_role.
+      console.error("❌ Falha ao criar lead:", e);
     }
 
     await processarPagamento(null, paymentMethod);
