@@ -35,7 +35,6 @@ export function CheckoutModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [pixData, setPixData] = useState<{ qrCodeBase64: string, copyPaste: string } | null>(null);
   const [produto, setProduto] = useState<{ preco: number, installments: number, nome: string, success_url: string } | null>(null);
-  // ⚠️ TEMPORÁRIO: campos de endereço/CEP no cartão (apenas para teste). Remover depois.
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -45,12 +44,6 @@ export function CheckoutModal({
     validade: "",
     cvv: "",
     installment: "1",
-    cep: "",
-    endereco: "",
-    numero: "",
-    bairro: "",
-    cidade: "",
-    estado: "",
   });
 
   const [leadId, setLeadId] = useState<string | null>(null);
@@ -278,18 +271,6 @@ export function CheckoutModal({
         payload.payment_method_id = cardToken.payment_method_id;
         if (cardToken.issuer_id) {
           payload.issuer_id = String(cardToken.issuer_id);
-        }
-
-        // ⚠️ TEMPORÁRIO: address do payer para o MP (apenas para teste de cartão). Remover depois.
-        if (formData.cep || formData.endereco) {
-          payload.payer.address = {
-            zip_code: formData.cep.replace(/\D/g, "") || "01001000",
-            street_name: formData.endereco || "Rua Example",
-            street_number: formData.numero || "S/N",
-            neighborhood: formData.bairro || "Centro",
-            city: formData.cidade || "Sao Paulo",
-            federal_unit: (formData.estado || "SP").toUpperCase().slice(0, 2),
-          };
         }
       }
 
@@ -787,81 +768,6 @@ const containerClass = asPage
                         value={formData.cvv}
                         onChange={(e) => setFormData({ ...formData, cvv: e.target.value })}
                         placeholder="000"
-                        className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
-                      />
-                    </div>
-                  </div>
-
-                  {/* ⚠️ TEMPORÁRIO: bloco de endereço/CEP no cartão (apenas para teste). Remover depois. */}
-                  <div className="border border-dashed border-amber-300 rounded-lg p-3 bg-amber-50/40">
-                    <p className="text-[10px] text-amber-700 font-bold uppercase tracking-wider mb-2">⚠️ Apenas para teste</p>
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">CEP</label>
-                        <input
-                          type="text"
-                          value={formData.cep}
-                          onChange={(e) => {
-                            let val = e.target.value.replace(/\D/g, "").slice(0, 8);
-                            val = val.replace(/(\d{5})(\d)/, "$1-$2");
-                            setFormData({ ...formData, cep: val });
-                          }}
-                          placeholder="00000-000"
-                          maxLength={9}
-                          className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">Estado (UF)</label>
-                        <input
-                          type="text"
-                          value={formData.estado}
-                          onChange={(e) => setFormData({ ...formData, estado: e.target.value.toUpperCase().slice(0, 2) })}
-                          placeholder="SP"
-                          maxLength={2}
-                          className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">Endereço</label>
-                      <input
-                        type="text"
-                        value={formData.endereco}
-                        onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                        placeholder="Rua / Avenida"
-                        className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
-                      />
-                    </div>
-                    <div className="flex gap-3 mt-3">
-                      <div className="w-24">
-                        <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">Número</label>
-                        <input
-                          type="text"
-                          value={formData.numero}
-                          onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                          placeholder="123"
-                          className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">Bairro</label>
-                        <input
-                          type="text"
-                          value={formData.bairro}
-                          onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
-                          placeholder="Centro"
-                          className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wider font-bold block mb-1">Cidade</label>
-                      <input
-                        type="text"
-                        value={formData.cidade}
-                        onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
-                        placeholder="São Paulo"
                         className="w-full bg-white border border-gray-300 text-gray-800 text-base p-3 rounded-lg focus:ring-2 focus:ring-[#07b848] focus:border-[#07b848] outline-none transition"
                       />
                     </div>
