@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "imports": {
+    "supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+  }
+}
