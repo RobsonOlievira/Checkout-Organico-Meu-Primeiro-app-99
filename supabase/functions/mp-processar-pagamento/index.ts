@@ -365,8 +365,8 @@ async function handleCriarPreferencia(
   if (payerEmail && payerEmail.includes("@")) payerPref.email = payerEmail;
   if (payerNome) {
     const parts = payerNome.split(/\s+/);
-    payerPref.first_name = parts[0] || "";
-    payerPref.last_name = parts.slice(1).join(" ") || parts[0] || "";
+    payerPref.name = parts[0] || "";
+    payerPref.surname = parts.slice(1).join(" ") || parts[0] || "";
   }
   if (payerTelefone.length >= 10) {
     payerPref.phone = {

@@ -107,7 +107,14 @@ export function CheckoutModal({
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ tipo: "criar_preferencia", curso_id: cursoId, bump_ids: selectedBumps, external_reference: ref || "direto" }),
+        body: JSON.stringify({
+          tipo: "criar_preferencia",
+          curso_id: cursoId,
+          bump_ids: selectedBumps,
+          external_reference: ref || "direto",
+          payer: { first_name: formData.nome, email: formData.email },
+          telefone: formData.telefone,
+        }),
       });
       const data = await res.json();
       if (data.init_point) {
