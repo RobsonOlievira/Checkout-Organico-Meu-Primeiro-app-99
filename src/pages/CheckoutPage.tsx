@@ -27,7 +27,7 @@ interface CheckoutModalProps {
 export function CheckoutModal({
   isOpen,
   onClose,
-  cursoId = "curso_teste",
+  cursoId = "low_ticket_maia_67",
   asPage = false,
 }: CheckoutModalProps) {
   const [activeTab, setActiveTab] = useState<"pix" | "cartao" | "boleto">("pix");
@@ -1238,5 +1238,5 @@ const containerClass = asPage
 }
 
 export default function CheckoutPage() {
-  return <CheckoutModal isOpen={true} onClose={() => window.history.back()} cursoId="curso_teste" asPage={true} />;
+  return <CheckoutModal isOpen={true} onClose={() => window.history.back()} cursoId="low_ticket_maia_67" asPage={true} />;
 }
