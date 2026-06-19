@@ -493,6 +493,19 @@ async function handleProcessarPagamento(
     if (issuer_id) mpPayload.issuer_id = String(issuer_id);
   }
 
+  // payer.address — recomendado pela doc do MP ("todas as informações do payer")
+  if (payerFormatado.email) {
+    const addr: Record<string, any> = {};
+    if (formData.address_zip_code)  addr.zip_code     = String(formData.address_zip_code).replace(/\D/g, "");
+    if (formData.address_street)     addr.street_name  = formData.address_street;
+    if (formData.address_number)    addr.street_number = String(formData.address_number);
+    if (formData.address_city)      addr.city         = formData.address_city;
+    if (formData.address_state)     addr.state        = String(formData.address_state).toUpperCase().slice(0, 2);
+    if (formData.address_zip_code || formData.address_street) {
+      payerFormatado.address = addr;
+    }
+  }
+
   // 🔐 Dados de antifraude (Device ID + additional_info.payer)
   const xff = req.headers.get("x-forwarded-for");
   const clientIp = xff?.split(",")[0]?.trim()

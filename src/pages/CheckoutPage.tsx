@@ -44,6 +44,11 @@ export function CheckoutModal({
     validade: "",
     cvv: "",
     installment: "1",
+    address_zip_code: "",
+    address_street: "",
+    address_number: "",
+    address_city: "",
+    address_state: "",
   });
 
   const [leadId, setLeadId] = useState<string | null>(null);
@@ -297,6 +302,10 @@ export function CheckoutModal({
           city: "Sao Paulo",
           federal_unit: "SP",
         };
+        // date_of_expiration — boleto expira em 3 dias (boa prática da doc do MP)
+        const exp = new Date();
+        exp.setDate(exp.getDate() + 3);
+        payload.date_of_expiration = exp.toISOString().split("T")[0];
       }
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
