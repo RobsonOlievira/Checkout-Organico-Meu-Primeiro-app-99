@@ -104,11 +104,10 @@ export function CheckoutModal({
       } catch {}
     }
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
+      const res = await fetch(`/api/mp-create-preference`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
         body: JSON.stringify({
-          tipo: "criar_preferencia",
           curso_id: cursoId,
           bump_ids: selectedBumps,
           external_reference: ref || "direto",
@@ -315,7 +314,7 @@ export function CheckoutModal({
         payload.date_of_expiration = exp.toISOString().split("T")[0];
       }
 
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/mp-processar-pagamento`, {
+      const res = await fetch(`/api/mp-process-payment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
