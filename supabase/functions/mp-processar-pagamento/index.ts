@@ -31,7 +31,11 @@ async function validarAssinaturaMP(req: Request, body: any, urlObj: URL): Promis
   if (!secret) return true;
 
   const topic = urlObj.searchParams.get("topic");
-  if (topic === "payment" || topic === "merchant_order") return true;
+  const type = urlObj.searchParams.get("type");
+  if (
+    topic === "payment" || topic === "merchant_order" ||
+    type === "payment" || type === "merchant_order"
+  ) return true;
 
   const xSignature = req.headers.get("x-signature");
   const xRequestId = req.headers.get("x-request-id");
